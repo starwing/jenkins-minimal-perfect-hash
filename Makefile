@@ -1,7 +1,8 @@
-CFLAGS = -O
+CC = gcc
+CFLAGS = -O3
 
 .cc.o:
-	gcc $(CFLAGS) -c $<
+	$(CC) $(CFLAGS) -c $<
 
 O_TEST = lookupa.o recycle.o test_hash.o testperf.o
 
@@ -10,10 +11,10 @@ OBJECTS = lookupa.o recycle.o perfhex.o perfect.o
 all: perfect test
 
 perfect : $(OBJECTS)
-	gcc -o perfect $(OBJECTS) -lm
+	$(CC) -o perfect $(OBJECTS) -lm
 
 test : $(O_TEST)
-	gcc -o test $(O_TEST) -lm
+	$(CC) -o test $(O_TEST) -lm
 
 clean:
 	rm ./*.o perfect test
