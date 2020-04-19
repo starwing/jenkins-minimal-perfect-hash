@@ -1183,8 +1183,8 @@ static void hexn(key     *keys,
 /* find the highest and lowest bit where any key differs */
 static void setlow(key *keys, gencode *final)
 {
-  uint32_t  lowbit;
-  uint32_t  highbit;
+  /* uint32_t  lowbit; */
+  /* uint32_t  highbit; */
   uint32_t  i;
   key *mykey;
   uint32_t  firstkey;
@@ -1237,6 +1237,7 @@ int inithex(key      *keys,       /* list of all keys */
             gencode  *final,      /* output, code for the final hash */
             hashform *form)       /* user directives */
 {
+  (void)smax;
   setlow(keys, final);
 
   switch (nkeys)
