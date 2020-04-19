@@ -371,14 +371,11 @@ static void duplicates(bstuff   *tabb,  /* array of lists of keys with the same 
 }
 
 
-/* Try to apply an augmenting list */
-static int apply(bstuff   *tabb,
-                 hstuff   *tabh,
-                 qstuff   *tabq,
-                 uint32_t  blen,
-                 uint32_t *scramble,
-                 uint32_t  tail,
-                 int       rollback) /* FALSE applies augmenting path, TRUE rolls back */
+/* rollback an augmenting list */
+static void rollback(hstuff   *tabh,
+                     qstuff   *tabq,
+                     uint32_t *scramble,
+                     uint32_t  tail)
 {
   uint32_t     hash;
   key    *mykey;
@@ -405,21 +402,63 @@ static int apply(bstuff   *tabb,
     }
 
     /* change pb->val_b, which will change the hashes of all parent siblings */
-    pb->val_b = (rollback ? tabq[child].oldval_q : tabq[child].newval_q);
+    pb->val_b = tabq[child].oldval_q;
+
+    /* set new hash values */
+    if (parent != 0) {                            /* root never had a hash */
+        stabb = scramble[pb->val_b];
+        for (mykey=pb->list_b; mykey; mykey=mykey->nextb_k)
+        {
+            hash = mykey->a_k^stabb;
+            tabh[hash].key_h = mykey;
+        }
+    }
+  }
+}
+
+
+/* Try to apply an augmenting list */
+static int apply(hstuff   *tabh,
+                 qstuff   *tabq,
+                 uint32_t *scramble,
+                 uint32_t  tail)
+{
+  uint32_t     hash;
+  key    *mykey;
+  bstuff *pb;
+  uint32_t     child;
+  uint32_t     parent;
+  uint32_t     stabb;                                         /* scramble[tab[b]] */
+
+  /* walk from child to parent */
+  for (child=tail-1; child; child=parent)
+  {
+    parent = tabq[child].parent_q;                    /* find child's parent */
+    pb     = tabq[parent].b_q;             /* find parent's list of siblings */
+
+    /* erase old hash values */
+    stabb = scramble[pb->val_b];
+    for (mykey=pb->list_b; mykey; mykey=mykey->nextb_k)
+    {
+      hash = mykey->a_k^stabb;
+      if (mykey == tabh[hash].key_h)
+      {                            /* erase hash for all of child's siblings */
+	tabh[hash].key_h = (key *)0;
+      }
+    }
+
+    /* change pb->val_b, which will change the hashes of all parent siblings */
+    pb->val_b = tabq[child].newval_q;
 
     /* set new hash values */
     stabb = scramble[pb->val_b];
     for (mykey=pb->list_b; mykey; mykey=mykey->nextb_k)
     {
       hash = mykey->a_k^stabb;
-      if (rollback)
-      {
-	if (parent == 0) continue;                  /* root never had a hash */
-      }
-      else if (tabh[hash].key_h)
+      if (tabh[hash].key_h)
       {
 	/* very rare: roll back any changes */
-	(void)apply(tabb, tabh, tabq, blen, scramble, tail, TRUE);
+        rollback(tabh, tabq, scramble, tail);
 	return FALSE;                                  /* failure, collision */
       }
       tabh[hash].key_h = mykey;
@@ -519,7 +558,7 @@ static int augment(bstuff   *tabb,    /* stuff indexed by b */
       if (!childb)
       {                                  /* found an *i* with no collisions? */
 	/* try to apply the augmenting path */
-	if (apply(tabb, tabh, tabq, blen, scramble, tail, FALSE))
+	if (apply(tabh, tabq, scramble, tail))
 	  return TRUE;        /* success, item was added to the perfect hash */
 
 	--tail;                    /* don't know how to handle such a child! */
